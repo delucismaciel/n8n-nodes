@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+.vscode
+tsconfig.json
+gulpfile.js
+.eslintrc.js
+.eslintignore
+nodes
+docs
