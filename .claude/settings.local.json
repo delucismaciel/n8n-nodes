@@ -3,7 +3,10 @@
     "allow": [
       "WebFetch(domain:www30.bhan.com.br)",
       "Bash(npm install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(chmod +x \"c:/Users/GEOVENDAS/Desktop/Teste n8n node/install.sh\")",
+      "Bash(bash \"c:/Users/GEOVENDAS/Desktop/Teste n8n node/install.sh\" --help)",
+      "Bash(curl -sk \"https://www30.bhan.com.br:9443/api/totvsmoda/product/v2/swagger/v1/swagger.json\" -o \"c:/Users/GEOVENDAS/Desktop/Teste n8n node/swagger.json\")"
     ]
   }
 }

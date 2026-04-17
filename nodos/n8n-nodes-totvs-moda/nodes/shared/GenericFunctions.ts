@@ -9,21 +9,13 @@ import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 import {
   DEFAULT_PAGE_SIZE,
-  TOTVS_MODA_PRODUCT_BASE_PATH,
+  TOTVS_MODA_PRODUCT_BASE_URL,
   type TotvsModaErrorBody,
   type TotvsModaPaginatedResponse,
 } from './types';
 
-function normalizeBaseUrl(baseUrl: string): string {
-  if (!baseUrl) {
-    throw new Error('Base URL vazio.');
-  }
-  return baseUrl.replace(/\/+$/, '');
-}
-
 export async function totvsModaApiRequest(
   this: IExecuteFunctions,
-  baseUrl: string,
   accessToken: string,
   method: IHttpRequestMethods,
   endpoint: string,
@@ -37,7 +29,7 @@ export async function totvsModaApiRequest(
     );
   }
 
-  const url = `${normalizeBaseUrl(baseUrl)}${TOTVS_MODA_PRODUCT_BASE_PATH}${endpoint}`;
+  const url = `${TOTVS_MODA_PRODUCT_BASE_URL}${endpoint}`;
 
   const options: IHttpRequestOptions = {
     method,
@@ -61,24 +53,57 @@ export async function totvsModaApiRequest(
   try {
     return (await this.helpers.httpRequest(options)) as IDataObject | IDataObject[];
   } catch (error) {
-    const err = error as { statusCode?: number; response?: { body?: TotvsModaErrorBody } };
-    if (err.statusCode === 401) {
+    const err = error as {
+      statusCode?: number;
+      message?: string;
+      response?: { body?: unknown; data?: unknown; statusCode?: number; status?: number };
+      cause?: { response?: { data?: unknown; body?: unknown } };
+    };
+    const status = err.statusCode ?? err.response?.statusCode ?? err.response?.status;
+    if (status === 401) {
       throw new NodeApiError(this.getNode(), error as JsonObject, {
         message: 'Token inválido ou expirado. Autentique novamente antes de chamar este node.',
         httpCode: '401',
       });
     }
-    const apiMessage = err.response?.body?.detailedMessage ?? err.response?.body?.message;
-    if (apiMessage) {
-      throw new NodeApiError(this.getNode(), error as JsonObject, { message: apiMessage });
+
+    const candidates: unknown[] = [
+      err.response?.body,
+      err.response?.data,
+      err.cause?.response?.data,
+      err.cause?.response?.body,
+    ];
+    let apiMessage: string | undefined;
+    for (const raw of candidates) {
+      if (raw === undefined || raw === null || raw === '') continue;
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw) as TotvsModaErrorBody;
+          apiMessage =
+            parsed.detailedMessage ?? parsed.message ?? JSON.stringify(parsed).slice(0, 500);
+        } catch {
+          apiMessage = raw.slice(0, 500);
+        }
+        break;
+      }
+      if (typeof raw === 'object') {
+        const parsed = raw as TotvsModaErrorBody;
+        apiMessage =
+          parsed.detailedMessage ?? parsed.message ?? JSON.stringify(raw).slice(0, 500);
+        break;
+      }
     }
-    throw new NodeApiError(this.getNode(), error as JsonObject);
+
+    const statusLabel = status ? `HTTP ${status}` : 'Erro';
+    const fullMessage = apiMessage
+      ? `${statusLabel}: ${apiMessage}`
+      : `${statusLabel}: ${err.message ?? 'sem corpo de resposta'}`;
+    throw new NodeApiError(this.getNode(), error as JsonObject, { message: fullMessage });
   }
 }
 
 export async function totvsModaApiRequestAllItemsQuery(
   this: IExecuteFunctions,
-  baseUrl: string,
   accessToken: string,
   endpoint: string,
   qs: IDataObject,
@@ -90,7 +115,6 @@ export async function totvsModaApiRequestAllItemsQuery(
   while (true) {
     const response = (await totvsModaApiRequest.call(
       this,
-      baseUrl,
       accessToken,
       'GET',
       endpoint,
@@ -110,7 +134,6 @@ export async function totvsModaApiRequestAllItemsQuery(
 
 export async function totvsModaApiRequestAllItemsBody(
   this: IExecuteFunctions,
-  baseUrl: string,
   accessToken: string,
   endpoint: string,
   body: IDataObject,
@@ -122,7 +145,6 @@ export async function totvsModaApiRequestAllItemsBody(
   while (true) {
     const response = (await totvsModaApiRequest.call(
       this,
-      baseUrl,
       accessToken,
       'POST',
       endpoint,

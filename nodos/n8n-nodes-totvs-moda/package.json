@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-totvs-moda",
-  "version": "0.1.0",
+  "version": "0.1.01",
   "description": "n8n community nodes para integração com as APIs Totvs Moda v2.",
   "keywords": [
     "n8n-community-node-package",
@@ -24,6 +24,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
+      "dist/nodes/TotvsModaAutenticacao/TotvsModaAutenticacao.node.js",
       "dist/nodes/TotvsModaProduto/TotvsModaProduto.node.js"
     ]
   },

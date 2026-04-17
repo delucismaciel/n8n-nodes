@@ -2,15 +2,6 @@ import type { INodeProperties } from 'n8n-workflow';
 
 export const baseProperties: INodeProperties[] = [
   {
-    displayName: 'Base URL',
-    name: 'baseUrl',
-    type: 'string',
-    default: '',
-    required: true,
-    placeholder: 'https://www30.bhan.com.br:9443',
-    description: 'URL base do ambiente Totvs Moda, sem path. Geralmente vem por expressão de um node anterior.',
-  },
-  {
     displayName: 'Access Token',
     name: 'accessToken',
     type: 'string',

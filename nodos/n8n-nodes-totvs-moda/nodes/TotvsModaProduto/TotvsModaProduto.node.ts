@@ -31,11 +31,10 @@ export class TotvsModaProduto implements INodeType {
 
     for (let i = 0; i < items.length; i += 1) {
       try {
-        const baseUrl = this.getNodeParameter('baseUrl', i) as string;
         const accessToken = this.getNodeParameter('accessToken', i) as string;
         const operation = this.getNodeParameter('operation', i) as string;
 
-        const results = await executeOperation.call(this, operation, i, baseUrl, accessToken);
+        const results = await executeOperation.call(this, operation, i, accessToken);
 
         for (const row of results) {
           returnData.push({ json: row, pairedItem: { item: i } });

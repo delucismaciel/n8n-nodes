@@ -11,7 +11,6 @@ import {
 async function executeListCategories(
   this: IExecuteFunctions,
   itemIndex: number,
-  baseUrl: string,
   accessToken: string,
 ): Promise<IDataObject[]> {
   const returnAll = this.getNodeParameter('returnAll', itemIndex) as boolean;
@@ -27,7 +26,6 @@ async function executeListCategories(
   if (returnAll) {
     items = await totvsModaApiRequestAllItemsQuery.call(
       this,
-      baseUrl,
       accessToken,
       '/category',
       qs,
@@ -36,7 +34,6 @@ async function executeListCategories(
     const limit = this.getNodeParameter('limit', itemIndex) as number;
     const response = (await totvsModaApiRequest.call(
       this,
-      baseUrl,
       accessToken,
       'GET',
       '/category',
@@ -53,22 +50,69 @@ async function executeListCategories(
 async function executeSearchProducts(
   this: IExecuteFunctions,
   itemIndex: number,
-  baseUrl: string,
   accessToken: string,
 ): Promise<IDataObject[]> {
   const returnAll = this.getNodeParameter('returnAll', itemIndex) as boolean;
-  const filter = this.getNodeParameter('filter', itemIndex, {}) as IDataObject;
+  const rawFilter = this.getNodeParameter('filter', itemIndex, {}) as IDataObject;
   const expand = this.getNodeParameter('expand', itemIndex, []) as string[];
   const fields = this.getNodeParameter('fields', itemIndex, []) as string[];
 
-  const body: IDataObject = { filter };
-  if (expand.length > 0) body.expand = expand;
+  const filter: IDataObject = {};
+  
+  if (typeof rawFilter.isActive === 'boolean') {
+    filter.isActive = rawFilter.isActive;
+  }
+
+  const change: IDataObject = {};
+  if (rawFilter.startChangeDate) change.startDate = rawFilter.startChangeDate;
+  if (rawFilter.endChangeDate) change.endDate = rawFilter.endChangeDate;
+  
+  if (Object.keys(change).length > 0) {
+    change.inProduct = rawFilter.inProduct !== undefined ? rawFilter.inProduct : true;
+    filter.change = change;
+  }
+
+  if (rawFilter.productCodeList) {
+    const list = String(rawFilter.productCodeList)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => Number(s))
+      .filter((n) => !Number.isNaN(n));
+    if (list.length > 0) filter.productCodeList = list;
+  }
+  
+  if (rawFilter.referenceCodeList) {
+    const list = String(rawFilter.referenceCodeList)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (list.length > 0) filter.referenceCodeList = list;
+  }
+
+  // --- CORREÇÃO AQUI ---
+  // A API rejeita '0' como vazio. Usamos '1' como fallback seguro baseado no seu JWT.
+  let branchInfoCode = 1; 
+  if (rawFilter.branchInfoCode !== undefined && rawFilter.branchInfoCode !== '') {
+    branchInfoCode = Number(rawFilter.branchInfoCode);
+  }
+
+  const option: IDataObject = {
+    branchInfoCode: branchInfoCode,
+  };
+
+  const body: IDataObject = { 
+    filter, 
+    option 
+  };
+  
+  if (expand.length > 0) body.expand = expand.join(',');
 
   let items: IDataObject[];
+  
   if (returnAll) {
     items = await totvsModaApiRequestAllItemsBody.call(
       this,
-      baseUrl,
       accessToken,
       '/products/search',
       body,
@@ -77,12 +121,12 @@ async function executeSearchProducts(
     const limit = this.getNodeParameter('limit', itemIndex) as number;
     const response = (await totvsModaApiRequest.call(
       this,
-      baseUrl,
       accessToken,
       'POST',
       '/products/search',
       { ...body, page: 1, pageSize: limit },
     )) as { items?: IDataObject[] };
+    
     items = applyLimit(response.items ?? [], limit);
   }
 
@@ -93,14 +137,13 @@ export async function executeOperation(
   this: IExecuteFunctions,
   operation: string,
   itemIndex: number,
-  baseUrl: string,
   accessToken: string,
 ): Promise<IDataObject[]> {
   switch (operation) {
     case 'listCategories':
-      return executeListCategories.call(this, itemIndex, baseUrl, accessToken);
+      return executeListCategories.call(this, itemIndex, accessToken);
     case 'searchProducts':
-      return executeSearchProducts.call(this, itemIndex, baseUrl, accessToken);
+      return executeSearchProducts.call(this, itemIndex, accessToken);
     default:
       throw new Error(`Operação não suportada: ${operation}`);
   }
